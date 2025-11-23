@@ -1,0 +1,32 @@
+MVP Design: 
+Monorepo: Typescript + Next JS
+Database: Firebase
+AI: Vercel AI SDK (provider-agnostic)
+Integrations: Google Calendar API (OAuth2), Twilio SMS.
+
+A mobile first text based habit builder app
+
+MVP Capabilities
+- Simple auth & Google Calendar integration via the Google API 
+    - Onboarding agent that helps user frame their goal in a productive, actionable, positive way
+    - Agent Objectives: 
+        - Define the user's goal (should be one we are compatible with; we need to make a list of goals that have a social + accountability aspect).  
+        - Why did the user fail at building this goal before 
+        - If the user built any habits before, what led them to succeed before? 
+        - Does the user want to be paired with random people or does the user have friends on the app? 
+- Basic CRUD operations on calendar events 
+    - Agent must be able to read a user’s calendar
+    - Agent must be able to suggest times (create calendar events) for an activity by taking in the user’s profile and goals 
+    - The agent must be able to update the calendar event it created. 
+- Scheduled check-in after calendar event: did you finish your workout, etc  
+    - The agent must be proactive and message the users
+        - Cron Jobs or BullMQ to queue notifications 
+            - To send notifications via SMS we will use the Twillio API
+    - Occasional coaching/chatting in case they miss a workout (some nice prompt engineering here)
+        - Agent figures out why they missed the workout and updates the user profile
+- Social  
+    - Users can add friends and an agent can look at a friends + user’s calendar to find similar times 
+    - Ask the user if they want to be paired with a random person and figure out common times. Build a time matching algorithm to pair up users. We ask this when the user is scheduling and making a plan. 
+Security
+Redact/encrypt calendar data when saving to DB
+
