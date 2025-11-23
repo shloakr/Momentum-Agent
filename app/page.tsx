@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, Users, Search, Calendar, X } from "lucide-react";
-import { useChat } from "@ai-sdk/react";
+import { MessageSquare, Users, Search, Calendar, X, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
 
 interface ActionButtonProps {
   icon: React.ReactNode;
@@ -50,15 +55,69 @@ function ActionButton({
 
 function ChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [inputValue, setInputValue] = useState("");
-  const { messages, append, isLoading } = useChat({
-    api: "/api/chat",
-  });
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (inputValue.trim() && !isLoading && append) {
-      await append({ role: "user", content: inputValue });
-      setInputValue("");
+    
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: inputValue,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to send message");
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = "";
+      const assistantId = (Date.now() + 1).toString();
+
+      setMessages((prev) => [
+        ...prev,
+        { id: assistantId, role: "assistant", content: "" },
+      ]);
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          console.log("Received chunk:", chunk);
+          
+          // The text stream just sends the text directly
+          assistantMessage += chunk;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: assistantMessage } : m
+            )
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -208,7 +267,7 @@ function ChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                     }
                   }}
                   placeholder="Type your message..."
-                  className="flex-1 px-5 py-3 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="flex-1 px-5 py-3 bg-white border-2 border-blue-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 placeholder:text-gray-400"
                   disabled={isLoading}
                   autoFocus
                 />
@@ -219,7 +278,7 @@ function ChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                   disabled={isLoading || !inputValue.trim()}
                   className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                  <MessageSquare className="w-6 h-6" />
+                  <Send className="w-5 h-5" />
                 </motion.button>
               </div>
             </form>
