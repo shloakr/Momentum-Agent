@@ -4,6 +4,9 @@ import { useState } from "react";
 import { MessageSquare, Users, Search, Calendar, X, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/lib/contexts/auth-context";
+import { SignInButton } from "@/components/auth/sign-in-button";
+import { UserMenu } from "@/components/auth/user-menu";
 
 interface Message {
   id: string;
@@ -292,6 +295,7 @@ function ChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
 
 export default function LandingPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const { user, loading } = useAuth();
 
   return (
     <>
@@ -303,7 +307,14 @@ export default function LandingPage() {
           className="w-full max-w-md bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/20"
         >
           {/* Header */}
-          <div className="p-8 text-center bg-gradient-to-b from-white/50 to-transparent">
+          <div className="p-8 text-center bg-gradient-to-b from-white/50 to-transparent relative">
+            {/* User Menu - Top Right */}
+            {user && (
+              <div className="absolute top-4 right-4">
+                <UserMenu />
+              </div>
+            )}
+            
             <motion.div
               animate={{ 
                 rotate: [0, 5, -5, 0],
@@ -326,44 +337,62 @@ export default function LandingPage() {
 
           {/* Main Content */}
           <div className="px-6 pb-8 space-y-3">
-            {/* Primary Action */}
-            <ActionButton
-              icon={<MessageSquare className="w-6 h-6" />}
-              label="Text Momentum"
-              onClick={() => setIsChatOpen(true)}
-              primary
-            />
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              </div>
+            ) : !user ? (
+              /* Sign In Section */
+              <div className="space-y-4">
+                <div className="text-center py-4">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome!</h2>
+                  <p className="text-gray-600 text-sm">Sign in to start building your momentum</p>
+                </div>
+                <SignInButton />
+              </div>
+            ) : (
+              /* Authenticated Content */
+              <>
+                {/* Primary Action */}
+                <ActionButton
+                  icon={<MessageSquare className="w-6 h-6" />}
+                  label="Text Momentum"
+                  onClick={() => setIsChatOpen(true)}
+                  primary
+                />
 
-            {/* Secondary Actions */}
-            <div className="space-y-3 pt-2">
-              <ActionButton
-                icon={<Users className="w-6 h-6 text-blue-500" />}
-                label="Find friends"
-                disabled
-              />
-              <ActionButton
-                icon={<Search className="w-6 h-6 text-purple-500" />}
-                label="Search Groups"
-                disabled
-              />
-              <ActionButton
-                icon={<Calendar className="w-6 h-6 text-pink-500" />}
-                label="View your Calendar"
-                disabled
-              />
-            </div>
+                {/* Secondary Actions */}
+                <div className="space-y-3 pt-2">
+                  <ActionButton
+                    icon={<Users className="w-6 h-6 text-blue-500" />}
+                    label="Find friends"
+                    disabled
+                  />
+                  <ActionButton
+                    icon={<Search className="w-6 h-6 text-purple-500" />}
+                    label="Search Groups"
+                    disabled
+                  />
+                  <ActionButton
+                    icon={<Calendar className="w-6 h-6 text-pink-500" />}
+                    label="View your Calendar"
+                    disabled
+                  />
+                </div>
 
-            {/* Coming Soon */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="pt-6 text-center"
-            >
-              <p className="text-sm text-gray-500 font-medium">
-                Additional features coming soon ✨
-              </p>
-            </motion.div>
+                {/* Coming Soon */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="pt-6 text-center"
+                >
+                  <p className="text-sm text-gray-500 font-medium">
+                    Additional features coming soon ✨
+                  </p>
+                </motion.div>
+              </>
+            )}
           </div>
 
           {/* Footer */}
