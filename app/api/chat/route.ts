@@ -1,16 +1,19 @@
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { chatService } from "@/lib/services/chat-service";
 
 export const runtime = "edge";
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  try {
+    const { messages } = await req.json();
 
-  const result = await streamText({
-    model: openai("gpt-4o-mini"),
-    system: "You are a helpful assistant for Text Momentum, a habit-building app that helps users achieve their goals through accountability and social support.",
-    messages,
-  });
+    if (!messages || !Array.isArray(messages)) {
+      return new Response("Invalid messages format", { status: 400 });
+    }
 
-  return result.toTextStreamResponse();
+    // Use the chat service to handle the conversation
+    return await chatService.streamResponse(messages);
+  } catch (error) {
+    console.error("Chat API error:", error);
+    return new Response("Internal server error", { status: 500 });
+  }
 }
