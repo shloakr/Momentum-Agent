@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
@@ -10,26 +10,20 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
 
-// Check if Firebase is properly configured
-const isFirebaseConfigured =
-  !!(
-    firebaseConfig.apiKey &&
-    firebaseConfig.projectId &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.appId
-  ) || process.env.NODE_ENV === "development";
+// Check if Firebase environment variables are provided
+const isFirebaseConfigured = !!(firebaseConfig.projectId && firebaseConfig.apiKey);
 
-// Initialize Firebase only if properly configured
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
+// Initialize Firebase
+let app: any = null;
+let auth: any = null;
 
-if (isFirebaseConfigured && firebaseConfig.projectId) {
-  try {
+try {
+  if (isFirebaseConfigured) {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
-  } catch (error) {
-    console.warn("Firebase initialization failed:", error);
   }
+} catch (error) {
+  console.warn("Firebase initialization warning:", error);
 }
 
 export { app, auth, isFirebaseConfigured };

@@ -5,7 +5,6 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User,
-  Auth,
 } from "firebase/auth";
 import { auth, isFirebaseConfigured } from "./config";
 
@@ -16,56 +15,39 @@ googleProvider.addScope("https://www.googleapis.com/auth/calendar");
 googleProvider.addScope("https://www.googleapis.com/auth/calendar.events");
 
 export async function signInWithGoogle() {
-  if (!auth || !isFirebaseConfigured) {
-    throw new Error("Firebase is not configured");
+  if (!auth) {
+    throw new Error("Firebase auth not initialized");
   }
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    
-    // Get the Google Access Token for API calls
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    const accessToken = credential?.accessToken;
-    
-    // Store the access token for later use with Google Calendar API
-    if (accessToken) {
-      localStorage.setItem("google_access_token", accessToken);
-    }
-    
-    return result.user;
-  } catch (error: any) {
-    console.error("Error signing in with Google:", error);
-    throw error;
+  const result = await signInWithPopup(auth, googleProvider);
+  
+  // Get the Google Access Token for API calls
+  const credential = GoogleAuthProvider.credentialFromResult(result);
+  const accessToken = credential?.accessToken;
+  
+  // Store the access token for later use with Google Calendar API
+  if (accessToken) {
+    localStorage.setItem("google_access_token", accessToken);
   }
+  
+  return result.user;
 }
 
 export async function signInWithGoogleRedirect() {
-  if (!auth || !isFirebaseConfigured) {
-    throw new Error("Firebase is not configured");
+  if (!auth) {
+    throw new Error("Firebase auth not initialized");
   }
-  try {
-    await signInWithRedirect(auth, googleProvider);
-  } catch (error: any) {
-    console.error("Error signing in with Google redirect:", error);
-    throw error;
-  }
+  await signInWithRedirect(auth, googleProvider);
 }
 
 export async function signOut() {
-  if (!auth || !isFirebaseConfigured) {
-    localStorage.removeItem("google_access_token");
-    return;
-  }
-  try {
-    localStorage.removeItem("google_access_token");
+  localStorage.removeItem("google_access_token");
+  if (auth) {
     await firebaseSignOut(auth);
-  } catch (error: any) {
-    console.error("Error signing out:", error);
-    throw error;
   }
 }
 
 export function onAuthStateChange(callback: (user: User | null) => void) {
-  if (!auth || !isFirebaseConfigured) {
+  if (!auth) {
     callback(null);
     return () => {};
   }

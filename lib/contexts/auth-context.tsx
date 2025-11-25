@@ -3,20 +3,17 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User } from "firebase/auth";
 import { onAuthStateChange, signOut as firebaseSignOut } from "@/lib/firebase/auth";
-import { isFirebaseConfigured } from "@/lib/firebase/config";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  isConfigured: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: false,
   signOut: async () => {},
-  isConfigured: false,
 });
 
 export function useAuth() {
@@ -33,14 +30,9 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(isFirebaseConfigured);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChange((user) => {
       setUser(user);
       setLoading(false);
@@ -54,9 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, loading, signOut, isConfigured: isFirebaseConfigured }}
-    >
+    <AuthContext.Provider value={{ user, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
