@@ -46,3 +46,8 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID = "momentum-c3957"
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "momentum-c3957.firebasestorage.app"
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "816352182168"
 NEXT_PUBLIC_FIREBASE_APP_ID = "1:816352182168:web:e9f1429a1802344c8eb5ed"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npm", "start", "--", "-p", "5000", "-H", "0.0.0.0"]
+build = ["npm", "run", "build"]
