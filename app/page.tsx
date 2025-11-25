@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { UserMenu } from "@/components/auth/user-menu";
+import { CalendarViewModal } from "@/components/calendar/calendar-view-modal";
 
 interface Message {
   id: string;
@@ -295,6 +296,7 @@ function ChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
 
 export default function LandingPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { user, loading } = useAuth();
 
   return (
@@ -376,7 +378,7 @@ export default function LandingPage() {
                   <ActionButton
                     icon={<Calendar className="w-6 h-6 text-pink-500" />}
                     label="View your Calendar"
-                    disabled
+                    onClick={() => setIsCalendarOpen(true)}
                   />
                 </div>
 
@@ -404,6 +406,9 @@ export default function LandingPage() {
 
       {/* Chat Modal */}
       <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
+      {/* Calendar Modal */}
+      <CalendarViewModal isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </>
   );
 }
