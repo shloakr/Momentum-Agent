@@ -36,9 +36,9 @@ npm run dev
 - ✅ **AI Chat Modal**: Streaming chat interface with OpenAI integration
 - ✅ **Service Architecture**: Scalable service layer for future features
 - ✅ **Type-Safe**: Full TypeScript with shared type definitions
+- ✅ **Authentication**: Firebase Auth + Google OAuth
 
 ### Coming Soon (Per Spec)
-- 🔜 **Authentication**: Firebase Auth + Google OAuth
 - 🔜 **Calendar Integration**: Google Calendar API for scheduling
 - 🔜 **Social Features**: Friend matching, group discovery
 - 🔜 **SMS Check-ins**: Twilio integration for accountability
