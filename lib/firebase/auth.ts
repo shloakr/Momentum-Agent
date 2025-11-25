@@ -5,8 +5,9 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User,
+  Auth,
 } from "firebase/auth";
-import { auth } from "./config";
+import { auth, isFirebaseConfigured } from "./config";
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -15,6 +16,9 @@ googleProvider.addScope("https://www.googleapis.com/auth/calendar");
 googleProvider.addScope("https://www.googleapis.com/auth/calendar.events");
 
 export async function signInWithGoogle() {
+  if (!auth || !isFirebaseConfigured) {
+    throw new Error("Firebase is not configured");
+  }
   try {
     const result = await signInWithPopup(auth, googleProvider);
     
@@ -35,6 +39,9 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithGoogleRedirect() {
+  if (!auth || !isFirebaseConfigured) {
+    throw new Error("Firebase is not configured");
+  }
   try {
     await signInWithRedirect(auth, googleProvider);
   } catch (error: any) {
@@ -44,6 +51,10 @@ export async function signInWithGoogleRedirect() {
 }
 
 export async function signOut() {
+  if (!auth || !isFirebaseConfigured) {
+    localStorage.removeItem("google_access_token");
+    return;
+  }
   try {
     localStorage.removeItem("google_access_token");
     await firebaseSignOut(auth);
@@ -54,6 +65,10 @@ export async function signOut() {
 }
 
 export function onAuthStateChange(callback: (user: User | null) => void) {
+  if (!auth || !isFirebaseConfigured) {
+    callback(null);
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 }
 
