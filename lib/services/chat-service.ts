@@ -1,6 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, CoreMessage } from "ai";
-import { habitToolDefinitions } from "./chat-tools/habit-tools";
+import { habitTools } from "./chat-tools/habit-tools";
 
 export interface ChatServiceConfig {
   model?: string;
@@ -16,7 +16,7 @@ export class ChatService {
   constructor(config?: ChatServiceConfig) {
     this.model = config?.model || "gpt-4o-mini";
     this.systemPrompt = config?.systemPrompt || this.getDefaultSystemPrompt();
-    this.enableCalendarTools = config?.enableCalendarTools ?? true;
+    this.enableCalendarTools = config?.enableCalendarTools ?? false;
   }
 
   private getDefaultSystemPrompt(): string {
@@ -51,12 +51,7 @@ Be warm, supportive, and ask thoughtful questions to understand their needs.`;
   }
 
   async streamResponse(messages: CoreMessage[]) {
-    const tools = this.enableCalendarTools
-      ? {
-          createCalendarEvent: habitToolDefinitions.createCalendarEvent,
-          getUpcomingEvents: habitToolDefinitions.getUpcomingEvents,
-        }
-      : undefined;
+    const tools = this.enableCalendarTools ? habitTools : undefined;
 
     const result = await streamText({
       model: openai(this.model),

@@ -12,56 +12,9 @@ const DAY_MAP: Record<DayOfWeek, number> = {
   SA: 6,
 };
 
-const createCalendarEventSchema = z.object({
-  summary: z
-    .string()
-    .describe("Event title, e.g., 'Morning Meditation' or 'Exercise Session'"),
-  description: z
-    .string()
-    .optional()
-    .describe("Optional description or notes for the event"),
-  startTime: z
-    .string()
-    .describe("Start time in HH:MM format, e.g., '07:00' for 7 AM"),
-  durationMinutes: z
-    .number()
-    .default(30)
-    .describe("Duration in minutes, defaults to 30"),
-  frequencyType: z
-    .enum(["daily", "weekly", "biweekly", "monthly"])
-    .describe("How often the habit occurs"),
-  daysOfWeek: z
-    .array(z.enum(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]))
-    .optional()
-    .describe("For weekly habits, which days of the week"),
-  timezone: z
-    .string()
-    .default("America/Los_Angeles")
-    .describe("User's timezone, e.g., 'America/New_York'"),
-});
-
-const getUpcomingEventsSchema = z.object({
-  maxResults: z
-    .number()
-    .default(5)
-    .describe("Maximum number of events to retrieve"),
-});
-
-type CreateCalendarEventParams = z.infer<typeof createCalendarEventSchema>;
-type GetUpcomingEventsParams = z.infer<typeof getUpcomingEventsSchema>;
-
-interface DateComponents {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  dayOfWeek: number;
-}
-
-function getDateComponentsInTimezone(timestamp: number, timezone: string): DateComponents {
+function getDateComponentsInTimezone(timestamp: number, timezone: string) {
   const date = new Date(timestamp);
-  
+
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",
@@ -69,7 +22,6 @@ function getDateComponentsInTimezone(timestamp: number, timezone: string): DateC
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
     hour12: false,
   });
 
@@ -85,7 +37,13 @@ function getDateComponentsInTimezone(timestamp: number, timezone: string): DateC
   });
   const weekdayStr = weekdayFormatter.format(date);
   const weekdayMap: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
   };
 
   return {
@@ -98,18 +56,16 @@ function getDateComponentsInTimezone(timestamp: number, timezone: string): DateC
   };
 }
 
-function addDaysToComponents(
-  components: DateComponents,
-  daysToAdd: number,
-  timezone: string
-): DateComponents {
+function addDaysToComponents(components: any, daysToAdd: number, timezone: string) {
   const targetTimestamp = Date.UTC(
     components.year,
     components.month - 1,
     components.day + daysToAdd,
-    12, 0, 0
+    12,
+    0,
+    0
   );
-  
+
   const result = getDateComponentsInTimezone(targetTimestamp, timezone);
   return {
     ...result,
@@ -118,15 +74,10 @@ function addDaysToComponents(
   };
 }
 
-function findNextOccurrence(
-  targetDays: DayOfWeek[] | undefined,
-  hours: number,
-  minutes: number,
-  timezone: string
-): DateComponents {
+function findNextOccurrence(targetDays: DayOfWeek[] | undefined, hours: number, minutes: number, timezone: string) {
   const nowTimestamp = Date.now();
   const now = getDateComponentsInTimezone(nowTimestamp, timezone);
-  
+
   const currentTimeMinutes = now.hour * 60 + now.minute;
   const targetTimeMinutes = hours * 60 + minutes;
   const todayPassed = currentTimeMinutes >= targetTimeMinutes;
@@ -145,7 +96,7 @@ function findNextOccurrence(
   for (const targetDay of targetDayNumbers) {
     let daysUntil = targetDay - today;
     if (daysUntil < 0) daysUntil += 7;
-    
+
     if (daysUntil === 0) {
       if (!todayPassed) {
         return { ...now, hour: hours, minute: minutes };
@@ -165,31 +116,27 @@ function findNextOccurrence(
   return { ...future, hour: hours, minute: minutes };
 }
 
-function addMinutesToComponents(
-  components: DateComponents,
-  minutesToAdd: number,
-  timezone: string
-): DateComponents {
+function addMinutesToComponents(components: any, minutesToAdd: number, timezone: string) {
   let totalMinutes = components.hour * 60 + components.minute + minutesToAdd;
   let daysToAdd = 0;
-  
+
   while (totalMinutes >= 24 * 60) {
     totalMinutes -= 24 * 60;
     daysToAdd += 1;
   }
-  
+
   const newHour = Math.floor(totalMinutes / 60);
   const newMinute = totalMinutes % 60;
-  
+
   if (daysToAdd > 0) {
     const futureDate = addDaysToComponents(components, daysToAdd, timezone);
     return { ...futureDate, hour: newHour, minute: newMinute };
   }
-  
+
   return { ...components, hour: newHour, minute: newMinute };
 }
 
-function formatDateTimeComponents(c: DateComponents): string {
+function formatDateTimeComponents(c: any): string {
   const y = c.year.toString();
   const m = c.month.toString().padStart(2, "0");
   const d = c.day.toString().padStart(2, "0");
@@ -198,137 +145,103 @@ function formatDateTimeComponents(c: DateComponents): string {
   return `${y}-${m}-${d}T${h}:${min}:00`;
 }
 
-function formatDisplayDate(c: DateComponents): string {
+function formatDisplayDate(c: any): string {
   const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   return `${days[c.dayOfWeek]}, ${months[c.month - 1]} ${c.day}`;
 }
 
-async function executeCreateCalendarEvent({
-  summary,
-  description,
-  startTime,
-  durationMinutes,
-  frequencyType,
-  daysOfWeek,
-  timezone,
-}: CreateCalendarEventParams) {
-  try {
-    const [hours, minutes] = startTime.split(":").map(Number);
+const createCalendarEventSchema = z.object({
+  summary: z.string().describe("Event title (e.g., 'Morning Meditation')"),
+  description: z.string().optional().describe("Optional event description"),
+  startTime: z.string().describe("Start time in HH:MM format (e.g., '07:00')"),
+  durationMinutes: z.number().default(30).describe("Duration in minutes"),
+  frequencyType: z.enum(["daily", "weekly", "biweekly", "monthly"]).describe("Frequency"),
+  daysOfWeek: z
+    .array(z.enum(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]))
+    .optional()
+    .describe("Days for weekly habits"),
+  timezone: z.string().default("America/Los_Angeles").describe("User timezone"),
+});
 
-    const startComponents = findNextOccurrence(
-      daysOfWeek as DayOfWeek[],
-      hours,
-      minutes,
-      timezone
-    );
+const getUpcomingEventsSchema = z.object({
+  maxResults: z.number().default(5).describe("Number of events to fetch"),
+});
 
-    const endComponents = addMinutesToComponents(
-      startComponents,
-      durationMinutes,
-      timezone
-    );
-
-    const recurrencePattern: RecurrencePattern = {
-      type: frequencyType,
-      daysOfWeek: daysOfWeek as DayOfWeek[] | undefined,
-    };
-
-    const recurrenceRule =
-      googleCalendarService.buildRecurrenceRule(recurrencePattern);
-
-    const startDateTime = formatDateTimeComponents(startComponents);
-    const endDateTime = formatDateTimeComponents(endComponents);
-
-    const event = await googleCalendarService.createEvent({
-      summary,
-      description: description || `Habit tracking for: ${summary}`,
-      startDateTime,
-      endDateTime,
-      timezone,
-      recurrence: recurrenceRule,
-    });
-
-    const displayDate = formatDisplayDate(startComponents);
-    const frequencyText =
-      frequencyType === "daily"
-        ? "every day"
-        : frequencyType === "weekly"
-          ? `every week${daysOfWeek && daysOfWeek.length > 0 ? ` on ${daysOfWeek.join(", ")}` : ""}`
-          : frequencyType === "biweekly"
-            ? "every two weeks"
-            : "every month";
-
-    return {
-      success: true,
-      eventId: event.id,
-      eventLink: event.htmlLink,
-      message: `Created "${summary}" on your calendar! Your first session is ${displayDate} at ${startTime}. It will repeat ${frequencyText}. You can view it here: ${event.htmlLink}`,
-    };
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    console.error("Error creating calendar event:", error);
-    return {
-      success: false,
-      error: errorMessage,
-      message: `I couldn't create the calendar event. ${errorMessage || "Please make sure Google Calendar is connected."}`,
-    };
-  }
-}
-
-async function executeGetUpcomingEvents({
-  maxResults,
-}: GetUpcomingEventsParams) {
-  try {
-    const events = await googleCalendarService.listEvents(maxResults);
-
-    if (events.length === 0) {
-      return {
-        success: true,
-        events: [],
-        message: "No upcoming events found in your calendar.",
-      };
-    }
-
-    return {
-      success: true,
-      events: events.map((e) => ({
-        id: e.id,
-        summary: e.summary,
-        start: e.start.dateTime,
-        end: e.end.dateTime,
-      })),
-      message: `Found ${events.length} upcoming events.`,
-    };
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching calendar events:", error);
-    return {
-      success: false,
-      error: errorMessage,
-      message: `I couldn't fetch your calendar. ${errorMessage || "Please make sure Google Calendar is connected."}`,
-    };
-  }
-}
-
-export const habitToolDefinitions = {
+export const habitTools = {
   createCalendarEvent: {
-    description: `Create a recurring calendar event for a habit that the user has confirmed they want to track. 
-Use this tool when the user has clearly stated they want to commit to a habit with specific timing.
-Always confirm the details with the user before creating the event.`,
+    description: `Create a recurring calendar event for a habit. Use when the user confirms they want to schedule a habit on their calendar.`,
     parameters: createCalendarEventSchema,
-    execute: executeCreateCalendarEvent,
+    execute: async (params: z.infer<typeof createCalendarEventSchema>) => {
+      try {
+        const [hours, minutes] = params.startTime.split(":").map(Number);
+
+        const startComponents = findNextOccurrence(params.daysOfWeek as DayOfWeek[], hours, minutes, params.timezone);
+        const endComponents = addMinutesToComponents(startComponents, params.durationMinutes, params.timezone);
+
+        const recurrencePattern: RecurrencePattern = {
+          type: params.frequencyType,
+          daysOfWeek: params.daysOfWeek as DayOfWeek[] | undefined,
+        };
+
+        const recurrenceRule = googleCalendarService.buildRecurrenceRule(recurrencePattern);
+        const startDateTime = formatDateTimeComponents(startComponents);
+        const endDateTime = formatDateTimeComponents(endComponents);
+
+        const event = await googleCalendarService.createEvent({
+          summary: params.summary,
+          description: params.description || `Habit tracking for: ${params.summary}`,
+          startDateTime,
+          endDateTime,
+          timezone: params.timezone,
+          recurrence: recurrenceRule,
+        });
+
+        const displayDate = formatDisplayDate(startComponents);
+        const frequencyText =
+          params.frequencyType === "daily"
+            ? "every day"
+            : params.frequencyType === "weekly"
+              ? `every week`
+              : params.frequencyType === "biweekly"
+                ? "every two weeks"
+                : "every month";
+
+        return `✅ Created "${params.summary}" on your calendar! First session: ${displayDate} at ${params.startTime}. Repeats ${frequencyText}. View it: ${event.htmlLink}`;
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        return `❌ Could not create event: ${msg}`;
+      }
+    },
   },
   getUpcomingEvents: {
-    description: `Fetch the user's upcoming calendar events to help understand their schedule and find good times for new habits.`,
+    description: `Fetch upcoming calendar events to help find good times for new habits.`,
     parameters: getUpcomingEventsSchema,
-    execute: executeGetUpcomingEvents,
+    execute: async (params: z.infer<typeof getUpcomingEventsSchema>) => {
+      try {
+        const events = await googleCalendarService.listEvents(params.maxResults);
+        if (events.length === 0) {
+          return "No upcoming events found.";
+        }
+        const eventList = events.map((e) => `• ${e.summary} at ${e.start.dateTime}`).join("\n");
+        return `Found ${events.length} upcoming events:\n${eventList}`;
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        return `❌ Could not fetch calendar: ${msg}`;
+      }
+    },
   },
 };
-
-export { createCalendarEventSchema, getUpcomingEventsSchema };
