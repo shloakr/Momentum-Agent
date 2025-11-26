@@ -1,7 +1,23 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { googleCalendarService } from "../calendar/google-calendar-service";
-import type { RecurrencePattern, DayOfWeek } from "../habits/habit-types";
+
+// Define schemas upfront for proper type inference
+const createEventSchema = z.object({
+  summary: z.string().describe("Event title/name (e.g., 'do cs188 hw', 'workout', 'team meeting')"),
+  description: z.string().optional().describe("Optional event description or details"),
+  date: z.string().describe("Event date in ISO format (YYYY-MM-DD) or natural language (e.g., 'Wednesday, November 26')"),
+  startTime: z.string().describe("Start time in HH:MM format using 24-hour time (e.g., '11:30', '14:00')"),
+  durationMinutes: z.number().default(60).describe("Event duration in minutes (default: 60)"),
+  timezone: z.string().default("America/Los_Angeles").describe("User timezone"),
+});
+
+const getEventsSchema = z.object({
+  maxResults: z.number().default(5).describe("Number of upcoming events to fetch"),
+});
+
+type CreateEventParams = z.infer<typeof createEventSchema>;
+type GetEventsParams = z.infer<typeof getEventsSchema>;
 
 // Helper functions for datetime handling
 function getDateComponentsInTimezone(timestamp: number, timezone: string) {
@@ -63,23 +79,9 @@ function addMinutesToComponents(components: any, minutesToAdd: number) {
 
 // Vercel AI SDK formatted tools
 export const createEventTool = tool({
-  description: `Create a single or recurring event on the user's Google Calendar from natural language. Use this when users ask to create calendar events with date/time specifics.`,
-  parameters: z.object({
-    summary: z.string().describe("Event title/name (e.g., 'do cs188 hw', 'workout', 'team meeting')"),
-    description: z.string().optional().describe("Optional event description or details"),
-    date: z.string().describe("Event date in ISO format (YYYY-MM-DD) or natural language (e.g., 'Wednesday, November 26')"),
-    startTime: z.string().describe("Start time in HH:MM format using 24-hour time (e.g., '11:30', '14:00')"),
-    durationMinutes: z.number().default(60).describe("Event duration in minutes (default: 60)"),
-    timezone: z.string().default("America/Los_Angeles").describe("User timezone"),
-  }),
-  execute: async (params: z.infer<typeof z.object({
-    summary: z.string(),
-    description: z.string().optional(),
-    date: z.string(),
-    startTime: z.string(),
-    durationMinutes: z.number().default(60),
-    timezone: z.string().default("America/Los_Angeles"),
-  })>) => {
+  description: `Create a single event on the user's Google Calendar from natural language. Use this when users ask to create calendar events with date/time specifics.`,
+  parameters: createEventSchema,
+  execute: async (params: CreateEventParams) => {
     try {
       // Parse the date
       let eventDate = new Date();
@@ -87,19 +89,16 @@ export const createEventTool = tool({
       // Try to parse natural language date like "Wednesday, November 26"
       if (params.date.includes(",") || params.date.match(/\w+day/)) {
         const dateStr = params.date;
-        // Try parsing as natural language
         const parsed = new Date(dateStr);
         if (!isNaN(parsed.getTime())) {
           eventDate = parsed;
         } else {
-          // Fallback: try ISO format
           const isoDate = new Date(params.date);
           if (!isNaN(isoDate.getTime())) {
             eventDate = isoDate;
           }
         }
       } else {
-        // ISO format
         const isoDate = new Date(params.date);
         if (!isNaN(isoDate.getTime())) {
           eventDate = isoDate;
@@ -125,7 +124,7 @@ export const createEventTool = tool({
         startDateTime,
         endDateTime,
         timezone: params.timezone,
-        recurrence: [], // Single event - no recurrence
+        recurrence: [],
       });
 
       const formattedDate = eventDate.toLocaleDateString("en-US", {
@@ -145,12 +144,8 @@ export const createEventTool = tool({
 
 export const getUpcomingEventsTool = tool({
   description: `Fetch the user's upcoming Google Calendar events. Use this to help users see their schedule or find available time slots.`,
-  parameters: z.object({
-    maxResults: z.number().default(5).describe("Number of upcoming events to fetch"),
-  }),
-  execute: async (params: z.infer<typeof z.object({
-    maxResults: z.number().default(5),
-  })>) => {
+  parameters: getEventsSchema,
+  execute: async (params: GetEventsParams) => {
     try {
       const events = await googleCalendarService.listEvents(params.maxResults);
       if (events.length === 0) {
