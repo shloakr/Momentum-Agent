@@ -1,3 +1,4 @@
+import { tool } from "ai";
 import { z } from "zod";
 import { googleCalendarService } from "../calendar/google-calendar-service";
 import type { RecurrencePattern, DayOfWeek } from "../habits/habit-types";
@@ -164,28 +165,22 @@ function formatDisplayDate(c: any): string {
   return `${days[c.dayOfWeek]}, ${months[c.month - 1]} ${c.day}`;
 }
 
-const createCalendarEventSchema = z.object({
-  summary: z.string().describe("Event title (e.g., 'Morning Meditation')"),
-  description: z.string().optional().describe("Optional event description"),
-  startTime: z.string().describe("Start time in HH:MM format (e.g., '07:00')"),
-  durationMinutes: z.number().default(30).describe("Duration in minutes"),
-  frequencyType: z.enum(["daily", "weekly", "biweekly", "monthly"]).describe("Frequency"),
-  daysOfWeek: z
-    .array(z.enum(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]))
-    .optional()
-    .describe("Days for weekly habits"),
-  timezone: z.string().default("America/Los_Angeles").describe("User timezone"),
-});
-
-const getUpcomingEventsSchema = z.object({
-  maxResults: z.number().default(5).describe("Number of events to fetch"),
-});
-
 export const habitTools = {
-  createCalendarEvent: {
-    description: `Create a recurring calendar event for a habit. Use when the user confirms they want to schedule a habit on their calendar.`,
-    parameters: createCalendarEventSchema,
-    execute: async (params: z.infer<typeof createCalendarEventSchema>) => {
+  createCalendarEvent: tool({
+    description: "Create a recurring calendar event for a habit. Use when the user confirms they want to schedule a habit on their calendar.",
+    parameters: z.object({
+      summary: z.string().describe("Event title (e.g., 'Morning Meditation')"),
+      description: z.string().optional().describe("Optional event description"),
+      startTime: z.string().describe("Start time in HH:MM format (e.g., '07:00')"),
+      durationMinutes: z.number().default(30).describe("Duration in minutes"),
+      frequencyType: z.enum(["daily", "weekly", "biweekly", "monthly"]).describe("Frequency"),
+      daysOfWeek: z
+        .array(z.enum(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]))
+        .optional()
+        .describe("Days for weekly habits"),
+      timezone: z.string().default("America/Los_Angeles").describe("User timezone"),
+    }),
+    execute: async (params) => {
       try {
         const [hours, minutes] = params.startTime.split(":").map(Number);
 
@@ -215,7 +210,7 @@ export const habitTools = {
           params.frequencyType === "daily"
             ? "every day"
             : params.frequencyType === "weekly"
-              ? `every week`
+              ? `every week on ${params.daysOfWeek?.join(", ")}`
               : params.frequencyType === "biweekly"
                 ? "every two weeks"
                 : "every month";
@@ -226,11 +221,13 @@ export const habitTools = {
         return `❌ Could not create event: ${msg}`;
       }
     },
-  },
-  getUpcomingEvents: {
-    description: `Fetch upcoming calendar events to help find good times for new habits.`,
-    parameters: getUpcomingEventsSchema,
-    execute: async (params: z.infer<typeof getUpcomingEventsSchema>) => {
+  }),
+  getUpcomingEvents: tool({
+    description: "Fetch upcoming calendar events to help find good times for new habits.",
+    parameters: z.object({
+      maxResults: z.number().default(5).describe("Number of events to fetch"),
+    }),
+    execute: async (params) => {
       try {
         const events = await googleCalendarService.listEvents(params.maxResults);
         if (events.length === 0) {
@@ -243,5 +240,5 @@ export const habitTools = {
         return `❌ Could not fetch calendar: ${msg}`;
       }
     },
-  },
+  }),
 };

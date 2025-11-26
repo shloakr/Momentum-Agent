@@ -16,7 +16,7 @@ export class ChatService {
   constructor(config?: ChatServiceConfig) {
     this.model = config?.model || "gpt-4o-mini";
     this.systemPrompt = config?.systemPrompt || this.getDefaultSystemPrompt();
-    this.enableCalendarTools = config?.enableCalendarTools ?? false;
+    this.enableCalendarTools = config?.enableCalendarTools ?? true;
   }
 
   private getDefaultSystemPrompt(): string {
