@@ -1,6 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, CoreMessage } from "ai";
-import { createEventTool, getUpcomingEventsTool } from "./chat-tools/calendar-tools";
+import { calendarTools } from "./chat-tools/calendar-tools";
 
 export interface ChatServiceConfig {
   model?: string;
@@ -50,11 +50,7 @@ If a user asks to see their calendar, use the getUpcomingEvents tool to fetch an
       model: openai(this.model),
       system: systemPrompt,
       messages,
-      tools: {
-        createEvent: createEventTool,
-        getUpcomingEvents: getUpcomingEventsTool,
-      },
-      maxSteps: 5,
+      tools: calendarTools as any,
     });
 
     return result.toTextStreamResponse();

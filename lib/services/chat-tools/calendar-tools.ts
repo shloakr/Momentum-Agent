@@ -1,23 +1,5 @@
-import { tool } from "ai";
 import { z } from "zod";
 import { googleCalendarService } from "../calendar/google-calendar-service";
-
-// Define schemas upfront for proper type inference
-const createEventSchema = z.object({
-  summary: z.string().describe("Event title/name (e.g., 'do cs188 hw', 'workout', 'team meeting')"),
-  description: z.string().optional().describe("Optional event description or details"),
-  date: z.string().describe("Event date in ISO format (YYYY-MM-DD) or natural language (e.g., 'Wednesday, November 26')"),
-  startTime: z.string().describe("Start time in HH:MM format using 24-hour time (e.g., '11:30', '14:00')"),
-  durationMinutes: z.number().default(60).describe("Event duration in minutes (default: 60)"),
-  timezone: z.string().default("America/Los_Angeles").describe("User timezone"),
-});
-
-const getEventsSchema = z.object({
-  maxResults: z.number().default(5).describe("Number of upcoming events to fetch"),
-});
-
-type CreateEventParams = z.infer<typeof createEventSchema>;
-type GetEventsParams = z.infer<typeof getEventsSchema>;
 
 // Helper functions for datetime handling
 function getDateComponentsInTimezone(timestamp: number, timezone: string) {
@@ -77,92 +59,97 @@ function addMinutesToComponents(components: any, minutesToAdd: number) {
   };
 }
 
-// Vercel AI SDK formatted tools
-export const createEventTool = tool({
-  description: `Create a single event on the user's Google Calendar from natural language. Use this when users ask to create calendar events with date/time specifics.`,
-  parameters: createEventSchema,
-  execute: async (params: CreateEventParams) => {
-    try {
-      // Parse the date
-      let eventDate = new Date();
-      
-      // Try to parse natural language date like "Wednesday, November 26"
-      if (params.date.includes(",") || params.date.match(/\w+day/)) {
-        const dateStr = params.date;
-        const parsed = new Date(dateStr);
-        if (!isNaN(parsed.getTime())) {
-          eventDate = parsed;
+// Tool definitions
+const createEventSchema = z.object({
+  summary: z.string().describe("Event title/name (e.g., 'do cs188 hw', 'workout')"),
+  date: z.string().describe("Event date (e.g., '2025-11-26' or 'Wednesday, November 26')"),
+  startTime: z.string().describe("Start time in HH:MM format (e.g., '11:30')"),
+  durationMinutes: z.number().default(60).describe("Duration in minutes"),
+  timezone: z.string().default("America/Los_Angeles").describe("Timezone"),
+});
+
+const getEventsSchema = z.object({
+  maxResults: z.number().default(5).describe("Number of events to fetch"),
+});
+
+export const calendarTools = {
+  createEvent: {
+    description: "Create a single event on the user's Google Calendar from natural language",
+    parameters: createEventSchema,
+    execute: async (params: z.infer<typeof createEventSchema>) => {
+      try {
+        let eventDate = new Date();
+        
+        if (params.date.includes(",") || params.date.match(/\w+day/)) {
+          const parsed = new Date(params.date);
+          if (!isNaN(parsed.getTime())) {
+            eventDate = parsed;
+          } else {
+            const isoDate = new Date(params.date);
+            if (!isNaN(isoDate.getTime())) {
+              eventDate = isoDate;
+            }
+          }
         } else {
           const isoDate = new Date(params.date);
           if (!isNaN(isoDate.getTime())) {
             eventDate = isoDate;
           }
         }
-      } else {
-        const isoDate = new Date(params.date);
-        if (!isNaN(isoDate.getTime())) {
-          eventDate = isoDate;
+
+        const [hours, minutes] = params.startTime.split(":").map(Number);
+        const startComponents = getDateComponentsInTimezone(eventDate.getTime(), params.timezone);
+        startComponents.hour = hours;
+        startComponents.minute = minutes;
+
+        const endComponents = addMinutesToComponents(startComponents, params.durationMinutes);
+
+        const startDateTime = formatDateTimeComponents(startComponents);
+        const endDateTime = formatDateTimeComponents(endComponents);
+
+        const event = await googleCalendarService.createEvent({
+          summary: params.summary,
+          description: params.summary,
+          startDateTime,
+          endDateTime,
+          timezone: params.timezone,
+          recurrence: [],
+        });
+
+        const formattedDate = eventDate.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+
+        return `✅ Event created! "${params.summary}" on ${formattedDate} at ${params.startTime}. View: ${event.htmlLink}`;
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        return `❌ Failed: ${msg}`;
+      }
+    },
+  },
+  getUpcomingEvents: {
+    description: "Fetch upcoming Google Calendar events",
+    parameters: getEventsSchema,
+    execute: async (params: z.infer<typeof getEventsSchema>) => {
+      try {
+        const events = await googleCalendarService.listEvents(params.maxResults);
+        if (events.length === 0) {
+          return "No upcoming events.";
         }
+        const eventList = events
+          .map((e) => {
+            const date = new Date(e.start.dateTime);
+            const timeStr = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+            return `• ${e.summary} - ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${timeStr}`;
+          })
+          .join("\n");
+        return `Upcoming events:\n${eventList}`;
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        return `❌ Error: ${msg}`;
       }
-
-      // Parse start time
-      const [hours, minutes] = params.startTime.split(":").map(Number);
-
-      // Get timezone-aware components
-      const startComponents = getDateComponentsInTimezone(eventDate.getTime(), params.timezone);
-      startComponents.hour = hours;
-      startComponents.minute = minutes;
-
-      const endComponents = addMinutesToComponents(startComponents, params.durationMinutes);
-
-      const startDateTime = formatDateTimeComponents(startComponents);
-      const endDateTime = formatDateTimeComponents(endComponents);
-
-      const event = await googleCalendarService.createEvent({
-        summary: params.summary,
-        description: params.description || params.summary,
-        startDateTime,
-        endDateTime,
-        timezone: params.timezone,
-        recurrence: [],
-      });
-
-      const formattedDate = eventDate.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-
-      return `✅ Event created! "${params.summary}" on ${formattedDate} at ${params.startTime} for ${params.durationMinutes} minutes. View it here: ${event.htmlLink}`;
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
-      console.error("Error creating event:", error);
-      return `❌ Failed to create event: ${msg}`;
-    }
+    },
   },
-});
-
-export const getUpcomingEventsTool = tool({
-  description: `Fetch the user's upcoming Google Calendar events. Use this to help users see their schedule or find available time slots.`,
-  parameters: getEventsSchema,
-  execute: async (params: GetEventsParams) => {
-    try {
-      const events = await googleCalendarService.listEvents(params.maxResults);
-      if (events.length === 0) {
-        return "You have no upcoming events on your calendar.";
-      }
-      const eventList = events
-        .map((e) => {
-          const date = new Date(e.start.dateTime);
-          const timeStr = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-          return `• ${e.summary} - ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${timeStr}`;
-        })
-        .join("\n");
-      return `Here are your upcoming events:\n${eventList}`;
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
-      console.error("Error fetching events:", error);
-      return `❌ Could not fetch your calendar: ${msg}`;
-    }
-  },
-});
+};
