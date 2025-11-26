@@ -1,19 +1,22 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, CoreMessage } from "ai";
-import { calendarTools } from "./chat-tools/calendar-tools";
+import { habitTools } from "./chat-tools/habit-tools";
 
 export interface ChatServiceConfig {
   model?: string;
   systemPrompt?: string;
+  enableCalendarTools?: boolean;
 }
 
 export class ChatService {
   private model: string;
   private systemPrompt: string;
+  private enableCalendarTools: boolean;
 
   constructor(config?: ChatServiceConfig) {
     this.model = config?.model || "gpt-4o-mini";
     this.systemPrompt = config?.systemPrompt || this.getDefaultSystemPrompt();
+    this.enableCalendarTools = config?.enableCalendarTools ?? false;
   }
 
   private getDefaultSystemPrompt(): string {
@@ -25,32 +28,39 @@ Your role is to:
 - Identify what has worked for them in the past
 - Guide them through building sustainable habits
 - Provide encouragement and accountability
-- Help schedule events on their Google Calendar
-
-When users ask to create calendar events:
-- Listen carefully for the event name/title, date, and time
-- If they provide natural language dates (e.g., "Wednesday, November 26"), convert them to ISO format (YYYY-MM-DD)
-- Convert times to 24-hour format (e.g., "11:30 AM" becomes "11:30")
-- Once you have the date, time, and event name, use the createEventTool to create the event
-- After creating the event, confirm it was created and provide a link
+- Help schedule habits on their calendar
 
 When discussing habits with users:
 1. First understand what habit they want to build
 2. Ask about their preferred schedule (time of day, days of the week, frequency)
-3. Help them create the habit on their calendar using the available tools
+3. Clarify the duration of each session
+4. Once you have clear details, confirm with the user before creating a calendar event
+5. Use the createCalendarEvent tool to add the habit to their Google Calendar
 
-Be warm, supportive, and ask thoughtful questions to understand their needs.
-If a user asks to see their calendar, use the getUpcomingEvents tool to fetch and show their events.`;
+For habit scheduling, always gather:
+- Activity name (e.g., "morning meditation", "workout", "reading")
+- Start time in HH:MM format (e.g., "07:00" for 7 AM)
+- Duration in minutes (default to 30 if not specified)
+- Frequency: daily, weekly, biweekly, or monthly
+- For weekly habits: which specific days (e.g., Monday, Wednesday, Friday)
+
+Before creating a calendar event, always confirm the details with the user:
+"I'll create a [frequency] event for [activity] at [time] for [duration] minutes. Does that sound right?"
+
+Be warm, supportive, and ask thoughtful questions to understand their needs.`;
   }
 
   async streamResponse(messages: CoreMessage[], calendarContext: string = "") {
+    const tools = this.enableCalendarTools ? habitTools : undefined;
+
     const systemPrompt = this.systemPrompt + calendarContext;
 
     const result = await streamText({
       model: openai(this.model),
       system: systemPrompt,
       messages,
-      tools: calendarTools as any,
+      tools,
+      maxSteps: 5,
     });
 
     return result.toTextStreamResponse();
