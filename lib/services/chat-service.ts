@@ -50,12 +50,14 @@ Before creating a calendar event, always confirm the details with the user:
 Be warm, supportive, and ask thoughtful questions to understand their needs.`;
   }
 
-  async streamResponse(messages: CoreMessage[]) {
+  async streamResponse(messages: CoreMessage[], calendarContext: string = "") {
     const tools = this.enableCalendarTools ? habitTools : undefined;
+
+    const systemPrompt = this.systemPrompt + calendarContext;
 
     const result = await streamText({
       model: openai(this.model),
-      system: this.systemPrompt,
+      system: systemPrompt,
       messages,
       tools,
       maxSteps: 5,
